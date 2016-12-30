@@ -1,0 +1,128 @@
+<script type="text/javascript" src="resources/highcharts.js"></script>
+<script type="text/javascript" src="resources/exporting.js"></script>
+
+<h1>Distribution of Times for Strava Segments</h1>
+<div id="container" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
+<div>
+    <h2>No of Attempts: </h2> <span id="no-attempts-span"></span>
+    <h2>Segment Name: </h2> <span id="segname-span"></span> 
+</div>
+<script type="text/javascript">
+    
+    function drawChart(data) {
+
+        document.getElementById('no-attempts-span').innerHTML = data.totalAttempts;
+        document.getElementById('segname-span').innerHTML = data.segmentInfo.name;
+
+        Highcharts.chart('container', {
+        chart: {
+                type: 'column'
+            },
+            title: {
+                text: 'Distribution of times for ' + data.segmentInfo.name
+            },
+            tooltip: {
+                    enabled: false
+                },
+            xAxis: {
+                gridLineWidth: 1,
+                plotLines: [{
+                    color: 'red', // Color value
+                    dashStyle: '', // Style of the plot line. Default to solid
+                    value: data.athleteBestEffort.elapsed_time, // Value of where the line will appear
+                    width: 2, // Width of the line    
+                    label: { 
+                        text: 'Your Best Effort: ' + data.athleteBestEffort.elapsed_time, // Content of the label. 
+                        // align: 'center', // Positioning of the label. 
+                        x: -150,
+                        y: 20,
+                        rotation: 0
+                    }
+                }],
+                plotBands: [{
+                    color: 'orange', // Color value
+                    from: data.athleteBestEffort.elapsed_time, // Start of the plot band
+                    to: data.distributionCurve[data.distributionCurve.length-1][0], // End of the plot band
+                    label: { 
+                        text: 'You are faster than ' +data.athleteBestEffort.fasterThan + '% of riders ', // Content of the label. 
+                        // align: 'center', // Positioning of the label. 
+                        x: -150,
+                        y: 20,
+                        rotation: 0
+                    }
+                }],
+                labels: {
+                    enabled: true,
+                    formatter: function() {
+                        return getMovingTime(this.value);
+                    }
+                }
+            },
+            yAxis: [{
+                title: {
+                    text: 'Time to Complete Segment / Seconds'
+                }
+            }, {
+                opposite: true,
+                title: {
+                    text: 'Y value'
+                }
+            }],
+            series: [{
+                name: 'Athletes',
+                type: 'column',
+                data: data.histogram,
+                pointPadding: 0,
+                groupPadding: 0,
+                pointWidth: 10,
+                pointPlacement: 'between'
+            }, {
+                name: 'XY data',
+                type: 'spline',
+                data: data.distributionCurve,
+                yAxis: 1,
+                marker: {
+                    radius: 1.5
+                }
+                
+            }]
+        });
+    }
+    
+
+    loadSegmentDetails();
+
+    function loadSegmentDetails(){
+        loadJSON(function(data){
+            data = JSON.parse(data);
+            console.log(data);
+
+            drawChart(data);
+        })
+    }
+
+    function loadJSON(callback) {
+
+        var xobj = new XMLHttpRequest();
+        xobj.overrideMimeType("application/json");
+        xobj.open('GET', 'data.json', true); // Replace 'my_data' with the path to your file
+        xobj.onreadystatechange = function() {
+            if (xobj.readyState == 4 && xobj.status == "200") {
+                // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
+                callback(xobj.responseText);
+            }
+        };
+        xobj.send(null);
+    };
+
+    function getMovingTime(seconds) {
+        var mins = ~~(seconds / 60);
+        var secs = seconds % 60;
+
+        var ret = "";
+
+        ret += "" + mins + ":" + (secs < 10 ? "0" : "");
+        ret += "" + secs;
+        return ret;
+    }
+</script>
