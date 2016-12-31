@@ -1,28 +1,17 @@
 var gaussian = require('gaussian');
 
 var statisticsModule = (function () {
-    var self = this;
-    var dataSeries;
-    var distribution;
 
     var statistics = {};
 
-    statistics.setDataSeries = function(ds){
-        dataSeries = ds;
-    }
-
-    statistics.getDataSeries = function(){
-        return dataSeries;
-    }
-
-    statistics.calculateGaussDistribution = function () {
+    statistics.calculateGaussDistribution = function (dataSeries) {
         var mean = 0.0;
         var variance = 0.0;
         var distributionCurve = [];
         var differenceTotal = 0.0;
         var count = dataSeries.length;
 
-        // mean§§§
+        // mean
         for (var i = 0; i < count; i++) {
             mean += dataSeries[i];
         }
@@ -38,14 +27,11 @@ var statisticsModule = (function () {
         console.log("Mean " + mean);
         console.log("Variance " + variance);
 
-        distribution = gaussian(mean, variance);
+        // Return new distribution
         return gaussian(mean, variance);
     }
 
-    statistics.getDistributionCurve = function () {
-        if(!distribution){
-            this.calculateGaussDistribution();
-        }
+    statistics.getDistributionCurve = function (dataSeries, distribution) {
 
         var distributionCurve = []
         var total = 0;
@@ -65,7 +51,7 @@ var statisticsModule = (function () {
         return distributionCurve;
     }
 
-    statistics.getHistogram = function (binSize) {
+    statistics.getHistogram = function (binSize, dataSeries) {
         var startDataPoint = dataSeries[0];
         var currentBinStart = startDataPoint;
         var currentBin = 0;
@@ -102,14 +88,11 @@ var statisticsModule = (function () {
         return dataBins;
     }
 
-    statistics.getCdf = function(xVal){
-        if(!distribution){
-            this.calculateGaussDistribution();
-        }
+    statistics.getCdf = function (xVal, distribution) {        
         return distribution.cdf(xVal);
     }
 
     return statistics;
-}());
+} ());
 
 module.exports = statisticsModule;

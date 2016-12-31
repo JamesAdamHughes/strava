@@ -4,10 +4,7 @@ var statistics = require('../resources/statistics.js');
 
 var segmentDetailController = (function () {
 
-    var effortTimesSeconds = [];
-    var effortTimeMinutes = [];
-    var athleteBestEffort = {};
-    var pageLimit = 5;
+    var pageLimit = 2;
     var binSize = 10;
     var segmentId = 610040;
     var segmentName = "";
@@ -16,8 +13,9 @@ var segmentDetailController = (function () {
     // Returns an ordered list of segment attempts 
     var getSegmentEfforts = function (segmentId) {
         console.log("Loading segment " + segmentId);
+        var effortTimesSeconds = [];
 
-        return getEfforts(1, segmentId).then(function (effortsArray) {
+        return getEfforts(segmentId).then(function (effortsArray) {
             // Combine results of strava calls
             for (var i = 0; i < effortsArray.length; i++) {
                 effortTimesSeconds = effortTimesSeconds.concat(effortsArray[i]);
@@ -38,7 +36,7 @@ var segmentDetailController = (function () {
     }
 
     // Async get all the efforts
-    function getEfforts(page, segmentId) {
+    function getEfforts(segmentId) {
         var promiseList = [];
         for (var i = 0; i < pageLimit; i++) {
             promiseList.push(getStravaEfforts(i, 200, segmentId));
@@ -80,7 +78,7 @@ var segmentDetailController = (function () {
         return deferred.promise;
     }
 
-    function getAthleteBestEffort(athlete_id) {
+    function getAthleteBestEffort(athlete_id, segmentId) {
         var bestEffortTime = 1000000000000000;
         var bestEffort = {};
         var deferred = q.defer();
@@ -90,17 +88,35 @@ var segmentDetailController = (function () {
             athlete_id: athlete_id
         }, function (err, payload) {
             if (!err) {
-                for (var i = 0; i < payload.length; i++) {
-                    var effort = payload[i];
-                    if (effort.elapsed_time < bestEffortTime) {
-                        bestEffortTime = effort.elapsed_time;
-                        bestEffort = effort;
+                // If no attempts made, return error
+                if (payload.length === 0) {
+                    deferred.resolve({ message: "No attempts made yet" });
+                } else {
+                    for (var i = 0; i < payload.length; i++) {
+                        var effort = payload[i];
+                        if (effort.elapsed_time < bestEffortTime) {
+                            bestEffortTime = effort.elapsed_time;
+                            bestEffort = effort;
+                        }
                     }
+                    deferred.resolve(bestEffort);
                 }
-                deferred.resolve(bestEffort);
             }
         });
         return deferred.promise;
+    }
+
+    function getSegmentStatistics(segmentEfforts) {
+        var distribution = statistics.calculateGaussDistribution(segmentEfforts);
+        var distributionCurve = statistics.getDistributionCurve(segmentEfforts, distribution);
+        var histogram = statistics.getHistogram(binSize, segmentEfforts);
+
+        var stats = {
+            distributionCurve: distributionCurve,
+            histogram: histogram,
+            distribution: distribution
+        };
+        return stats;
     }
 
     function getSegmentResults(segmentId, athlete_id) {
@@ -108,34 +124,34 @@ var segmentDetailController = (function () {
         var athleteBestEffort;
         return getSegmentEfforts(segmentId).then(function (efforts) {
             segmentEfforts = efforts;
-            return getAthleteBestEffort(athlete_id);
-        }).then(function (athBestEff) {            
-            athleteBestEffort = athBestEff;
-            return parseResults(segmentId, athlete_id, segmentEfforts, athleteBestEffort);
+            return getAthleteBestEffort(athlete_id, segmentId);
+        }).then(function (athleteBestEffort) {
+            // Caclulate the Distribution data
+
+            var segmentData = {};
+            var stats = getSegmentStatistics(segmentEfforts);
+
+            // Return info on segment
+            segmentData = {
+                id: segmentId,
+                name: getSegmentName(segmentId),
+                totalAttempts: segmentEfforts.length,
+                distributionCurve: stats.distributionCurve,
+                histogram: stats.histogram
+            };
+
+            // Check if athlete has attempted, otherwise log no attempts
+            if (athleteBestEffort.message === undefined) {
+                segmentData.athleteBestEffort = athleteBestEffort;
+                segmentData.faster_than = Math.round((1 - statistics.getCdf(athleteBestEffort.elapsed_time, stats.distribution)) * 10000) / 100;
+                segmentData.athleteAttempted = true;
+            } else {
+                segmentData.athleteAttempted = false;
+            }
+
+            console.log("Finished analysis");
+            return segmentData;
         });
-    }
-
-    function parseResults(segmentId, athlete_id, efforts, athleteBestEffort) {
-        console.log("doing statss");
-
-        var segmentData = {};
-        // Caclulate the Distribution data
-        statistics.setDataSeries(efforts);
-
-        segmentData.distributionCurve = statistics.getDistributionCurve();
-        segmentData.histogram = statistics.getHistogram(binSize);
-
-        segmentData.athleteBestEffort = athleteBestEffort;
-        segmentData.athleteBestEffort.faster_than = Math.round((1 - statistics.getCdf(athleteBestEffort.elapsed_time)) * 10000) / 100;
-
-        segmentData.totalAttempts = efforts.length;
-        segmentData.segmentInfo = {
-            id: segmentId,
-            name: getSegmentName(segmentId)
-        };
-
-        console.log("Finished analysis");
-        return segmentData;
     }
 
     return {

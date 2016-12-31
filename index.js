@@ -16,7 +16,7 @@ app.get('/', function (req, res) {
 app.get('/segmentDetail/:segId/athlete/:athId', function (req, res) {
     console.log(req.params);
 
-    segmentDetailController.getSegmentResults(req.params.segId, req.params.athId).then(function (segmentData) {
+    segmentDetailController.getSegmentResults(610040, req.params.athId).then(function (segmentData) {
         res.send(segmentData);
     });
 });

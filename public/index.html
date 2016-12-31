@@ -2,52 +2,64 @@
 <script type="text/javascript" src="exporting.js"></script>
 
 <h1>Distribution of Times for Strava Segments</h1>
+<h2>Search for a segment</h2>
+<div>
+    <input id="segment-id-value" name="segmentid" type="text" placeholder="segmentID">
+    <button id='segment-id-submit-button'>Analyze</button>
+</div>
+
 <div id="container" style="min-width: 310px; height: 400px; margin: 0 auto"></div>
 <script type="text/javascript">
-    
+
     function drawChart(data) {
+        var plotLines;
+        var plotBands;
+        if (data.athleteAttempted) {
+            plotLines = [{
+                color: 'red', // Color value
+                dashStyle: '', // Style of the plot line. Default to solid
+                value: data.athleteBestEffort.elapsed_time, // Value of where the line will appear
+                width: 2, // Width of the line    
+                label: {
+                    text: 'Your Best Effort: ' + getMovingTime(data.athleteBestEffort.elapsed_time), // Content of the label. 
+                    // align: 'center', // Positioning of the label. 
+                    x: -150,
+                    y: 20,
+                    rotation: 0
+                }
+            }];
+            plotBands = [{
+                color: 'orange', // Color value
+                from: data.athleteBestEffort.elapsed_time, // Start of the plot band
+                to: data.distributionCurve[data.distributionCurve.length - 1][0], // End of the plot band
+                label: {
+                    text: 'You are faster than ' + data.faster_than + '% of riders ', // Content of the label. 
+                    // align: 'center', // Positioning of the label. 
+                    x: -150,
+                    y: 20,
+                    rotation: 0
+                }
+            }];
+        }
 
         Highcharts.chart('container', {
-        chart: {
+            chart: {
                 type: 'column'
             },
             title: {
-                text: 'Distribution of ' + data.totalAttempts + ' attempts for ' + data.segmentInfo.name
+                text: 'Distribution of ' + data.totalAttempts + ' attempts for ' + data.name
             },
-            
+
             xAxis: {
                 gridLineWidth: 1,
                 title: {
                     text: 'Time to Complete Segment (mins)'
                 },
-                plotLines: [{
-                    color: 'red', // Color value
-                    dashStyle: '', // Style of the plot line. Default to solid
-                    value: data.athleteBestEffort.elapsed_time, // Value of where the line will appear
-                    width: 2, // Width of the line    
-                    label: { 
-                        text: 'Your Best Effort: ' + getMovingTime(data.athleteBestEffort.elapsed_time), // Content of the label. 
-                        // align: 'center', // Positioning of the label. 
-                        x: -150,
-                        y: 20,
-                        rotation: 0
-                    }
-                }],
-                plotBands: [{
-                    color: 'orange', // Color value
-                    from: data.athleteBestEffort.elapsed_time, // Start of the plot band
-                    to: data.distributionCurve[data.distributionCurve.length-1][0], // End of the plot band
-                    label: { 
-                        text: 'You are faster than ' +data.athleteBestEffort.faster_than + '% of riders ', // Content of the label. 
-                        // align: 'center', // Positioning of the label. 
-                        x: -150,
-                        y: 20,
-                        rotation: 0
-                    }
-                }],
+                plotLines: plotLines,
+                plotBands: plotBands,
                 labels: {
                     enabled: true,
-                    formatter: function() {
+                    formatter: function () {
                         return getMovingTime(this.value);
                         // return this.value;
                     }
@@ -79,25 +91,22 @@
                 marker: {
                     radius: 1.5
                 }
-                
+
             }]
         });
     }
-    
 
-    loadSegmentDetails();
-
-    function loadSegmentDetails(){
-        loadJSON(function(data){
+    function loadSegmentDetails(segmentId) {
+        loadJSON(segmentId, function (data) {
             drawChart(data);
         })
     }
 
-    function loadJSON(callback) {
+    function loadJSON(segmentId, callback) {
 
-        fetch('/segmentDetail/800400/athlete/14906240').then(function(data){
+        fetch('/segmentDetail/' + segmentId + '/athlete/14906240').then(function (data) {
             return data.json()
-        }).then(function(response){
+        }).then(function (response) {
             console.log(response);
             callback(response);
         });
@@ -113,4 +122,12 @@
         ret += "" + secs;
         return ret;
     }
+
+    var searchBoxButton = document.getElementById("segment-id-submit-button");
+    searchBoxButton.addEventListener("click", function(){
+        var segmentId = document.getElementById("segment-id-value").value;
+        console.log(segmentId);
+        loadSegmentDetails(segmentId);
+    });
+
 </script>
